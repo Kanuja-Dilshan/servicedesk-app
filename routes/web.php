@@ -15,6 +15,8 @@ Route::middleware('auth')->group(function () {
 Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
     Route::resource('tickets', TicketController::class)->except(['edit', 'destroy']);
+    Route::post('tickets/{ticket}/close', [TicketController::class, 'close'])->name('tickets.close');
+Route::post('tickets/{ticket}/reopen', [TicketController::class, 'reopen'])->name('tickets.reopen');
     Route::post('tickets/{ticket}/comments', [CommentController::class, 'store'])->name('comments.store');
     Route::get('attachments/{attachment}', [AttachmentController::class, 'show'])->name('attachments.show');
     Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');

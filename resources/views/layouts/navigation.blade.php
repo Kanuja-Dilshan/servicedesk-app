@@ -88,6 +88,20 @@
 </x-responsive-nav-link>
         </div>
 
+        <x-responsive-nav-link :href="route('tickets.index')" :active="request()->routeIs('tickets.*')">
+    Tickets
+</x-responsive-nav-link>
+<x-responsive-nav-link :href="route('notifications.index')" :active="request()->routeIs('notifications.*')">
+    Notifications
+    @if(auth()->user()->unreadNotifications()->count())
+        <span class="ms-1 rounded-full bg-red-600 px-2 text-xs text-white">{{ auth()->user()->unreadNotifications()->count() }}</span>
+    @endif
+</x-responsive-nav-link>
+@can('admin')
+    <x-responsive-nav-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')">Users</x-responsive-nav-link>
+    <x-responsive-nav-link :href="route('admin.categories.index')" :active="request()->routeIs('admin.categories.*')">Categories</x-responsive-nav-link>
+@endcan
+
         <!-- Responsive Settings Options -->
         <div class="pt-4 pb-1 border-t border-gray-200">
             <div class="px-4">

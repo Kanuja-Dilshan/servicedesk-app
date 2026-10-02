@@ -102,4 +102,41 @@ class TicketController extends Controller
 
     return back()->with('status', 'Ticket updated.');
 }
+
+    public function close(Ticket $ticket)
+{
+    $this->authorize('respond', $ticket);
+    $ticket->update(['status_id' => Ticket::CLOSED]);
+    $ticket->technician?->notify(
+        new TicketActivity($ticket, "Ticket #{$ticket->id} was confirmed fixed and closed by the requester")
+    );
+
+    return back()->with('status', 'Ticket closed. Thanks for confirming!');
+}
+
+public function reopen(Request $r, Ticket $ticket)
+{
+    $this->authorize('respond', $ticket);
+    $data = $r->validate(['reason' => 'required|string|max:1000']);
+
+    $ticket->update([
+        'status_id' => $ticket->assigned_to ? Ticket::IN_PROGRESS : Ticket::OPEN,
+        'resolved_at' => null,
+    ]);
+    $ticket->comments()->create([
+        'user_id' => $r->user()->id,
+        'body' => "Reopened: {$data['reason']}",
+        'is_internal' => false,
+    ]);
+
+    $message = "Ticket #{$ticket->id} was reopened by the requester";
+    if ($ticket->technician) {
+        $ticket->technician->notify(new TicketActivity($ticket, $message));
+    } else {
+        Notification::send(User::whereIn('role', ['support', 'admin'])->get(), new TicketActivity($ticket, $message));
+    }
+
+    return back()->with('status', 'Ticket reopened.');
+}     
+
 }

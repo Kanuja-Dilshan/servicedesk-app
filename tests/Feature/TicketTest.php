@@ -193,4 +193,19 @@ class TicketTest extends TestCase
         $this->assertDatabaseHas('users', ['email' => 'boss@example.com', 'role' => 'admin']);
     }
 
+        public function test_ticket_list_renders_status_badge_and_overdue_flag(): void
+    {
+        $emp = $this->user('employee');
+        $ticket = $this->ticketFor($emp);
+        $ticket->update(['due_at' => now()->subHour()]);
+
+        $this->actingAs($emp)->get('/tickets')->assertOk()->assertSee('Open')->assertSee('Overdue');
+    }
+
+        public function test_web_and_api_route_names_do_not_collide(): void
+    {
+        $this->assertSame(url('/tickets'), route('tickets.index'));
+        $this->assertSame(url('/api/tickets'), route('api.tickets.index'));
+    }
+
 }
