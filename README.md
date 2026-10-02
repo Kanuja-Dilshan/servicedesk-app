@@ -1,58 +1,84 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# ServiceDesk
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+IT support ticketing system for company employees. Employees report issues, IT Support investigates and resolves them, and Admins manage users and categories.
 
-## About Laravel
+Built with **Laravel, MySQL, Blade + Tailwind CSS, Sanctum (REST API), Docker**.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Features
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- Role-based access: Employee, IT Support, Admin (Laravel Policies and Gates)
+- Ticket workflow: Open → Assigned → In Progress → Waiting for User → Resolved → Closed
+- Comments, internal staff-only notes, private file attachments
+- Search, status filter, pagination
+- In-app and email notifications (assignment, status change, comments)
+- Dashboard with status/priority statistics and SLA overdue tracking
+- Audit log: history of every status and assignee change
+- Admin panel for users and ticket categories
+- REST API with token authentication
+- Automated feature tests
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Roles
 
-## Learning Laravel
+| Role | Can do |
+|------|--------|
+| Employee | Create tickets, see own tickets, comment, upload files |
+| IT Support | See all tickets, assign, change status, internal notes |
+| Admin | Everything above, plus manage users and categories |
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Local setup
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+Requirements: PHP 8.3+, Composer, Node.js 20+, MySQL.
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+composer install
+npm install
+cp .env.example .env
+php artisan key:generate
+# set DB_* values in .env and create the database first
+php artisan migrate --seed
+php artisan storage:link
+php artisan serve      # terminal 1
+npm run dev            # terminal 2
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Demo accounts (local only, password `password`): `admin@demo.test`, `tech@demo.test`, `emp@demo.test`
 
-## Contributing
+## Tests
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```bash
+php artisan test
+```
 
-## Code of Conduct
+Tests use an in-memory SQLite database (see `phpunit.xml`) and never touch the MySQL data.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## REST API
 
-## Security Vulnerabilities
+```
+POST /api/login                     { "email", "password" }  → { token }
+GET  /api/tickets                   ?q=search&status=3
+POST /api/tickets                   { title, description, category_id, priority_id }
+GET  /api/tickets/{id}
+PUT  /api/tickets/{id}              { status_id, assigned_to }   (staff only)
+POST /api/tickets/{id}/comments     { body, is_internal }
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Send `Accept: application/json` and `Authorization: Bearer <token>` on every request after login.
 
-## License
+## Docker
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```bash
+cp .env.example .env.docker      # then set APP_ENV=production, APP_KEY, DB_HOST=db and strong passwords
+docker compose up -d --build
+docker compose exec app php artisan migrate --force --seed
+docker compose exec app php artisan servicedesk:create-admin you@company.com "Your Name"
+```
+
+The app is served at http://localhost:8080. In production, put it behind HTTPS and never use the demo accounts.
+
+## Project structure
+
+- `app/Models/Ticket.php`: ticket model, visibility scope, audit-log events
+- `app/Policies/TicketPolicy.php`: who can view / manage / comment
+- `app/Http/Controllers/`: web controllers; `Api/` holds the REST controllers
+- `app/Notifications/TicketActivity.php`: database + mail notification
+- `database/seeders/`: lookup data (all environments) and demo users (local only)

@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\TicketStatus;
+use Database\Seeders\LookupSeeder;
 use App\Models\Ticket;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
@@ -168,6 +170,27 @@ class TicketTest extends TestCase
         $this->assertDatabaseHas('ticket_activities', [
             'ticket_id' => $ticket->id, 'user_id' => $tech->id, 'description' => 'Status changed to Resolved',
         ]);
+    }
+
+        public function test_lookup_seeder_can_run_twice_without_duplicates(): void
+    {
+        $this->seed(LookupSeeder::class);
+
+        $this->assertSame(6, TicketStatus::count());
+        $this->assertSame('Closed', TicketStatus::find(Ticket::CLOSED)->name);
+    }
+
+    public function test_create_admin_command_makes_an_admin_and_rejects_short_passwords(): void
+    {
+        $this->artisan('servicedesk:create-admin', ['email' => 'boss@example.com', 'name' => 'Boss'])
+            ->expectsQuestion('Password (min 12 characters)', 'short')
+            ->assertFailed();
+        $this->assertDatabaseMissing('users', ['email' => 'boss@example.com']);
+
+        $this->artisan('servicedesk:create-admin', ['email' => 'boss@example.com', 'name' => 'Boss'])
+            ->expectsQuestion('Password (min 12 characters)', 'a-long-password-123')
+            ->assertSuccessful();
+        $this->assertDatabaseHas('users', ['email' => 'boss@example.com', 'role' => 'admin']);
     }
 
 }
