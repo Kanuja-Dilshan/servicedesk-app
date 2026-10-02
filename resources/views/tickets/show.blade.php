@@ -32,5 +32,15 @@
         <p class="whitespace-pre-line">{{ $c->body }}</p>
       </div>
     @endforeach
+
+           <div>
+      <h2 class="font-medium mb-2">History</h2>
+      <ul class="text-sm text-gray-600 space-y-1">
+        @foreach($ticket->activities as $a)
+          <li>{{ $a->created_at->format('d M Y H:i') }} · {{ $a->user?->name ?? 'System' }}: {{ $a->description }}</li>
+        @endforeach
+      </ul>
+    </div>
+
   </div>
 </x-app-layout>

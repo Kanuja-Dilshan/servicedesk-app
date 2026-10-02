@@ -29,4 +29,29 @@ class Ticket extends Model
     {
         return $term ? $q->where(fn ($w) => $w->where('title', 'like', "%$term%")->orWhere('description', 'like', "%$term%")) : $q;
     }
+
+    public function activities() { return $this->hasMany(TicketActivity::class)->latest('id'); }
+
+protected static function booted(): void
+{
+    static::created(fn (Ticket $t) => $t->log('Ticket created', $t->created_by));
+
+    static::updated(function (Ticket $t) {
+        if ($t->wasChanged('status_id')) {
+            $t->log('Status changed to ' . TicketStatus::find($t->status_id)->name);
+        }
+        if ($t->wasChanged('assigned_to')) {
+            $name = $t->assigned_to ? User::find($t->assigned_to)?->name : null;
+            $t->log($name ? "Assigned to {$name}" : 'Unassigned');
+        }
+    });
+}
+
+public function log(string $description, ?int $userId = null): void
+{
+    // web requests use the default guard, API requests use the sanctum guard
+    $userId ??= auth()->id() ?? auth('sanctum')->id();
+    $this->activities()->create(['user_id' => $userId, 'description' => $description]);
+}
+
 }

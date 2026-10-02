@@ -139,4 +139,35 @@ class TicketTest extends TestCase
         Sanctum::actingAs($emp);
         $this->putJson("/api/tickets/{$ticket->id}", ['status_id' => 5])->assertForbidden();
     }
+
+         public function test_status_and_assignment_changes_are_logged_with_the_actor(): void
+    {
+        $tech = $this->user('support');
+        $ticket = $this->ticketFor($this->user('employee'));
+
+        $this->actingAs($tech)->put("/tickets/{$ticket->id}", [
+            'status_id' => Ticket::IN_PROGRESS, 'assigned_to' => $tech->id,
+        ]);
+
+        $this->assertDatabaseHas('ticket_activities', [
+            'ticket_id' => $ticket->id, 'user_id' => $tech->id, 'description' => 'Status changed to In Progress',
+        ]);
+        $this->assertDatabaseHas('ticket_activities', [
+            'ticket_id' => $ticket->id, 'user_id' => $tech->id, 'description' => "Assigned to {$tech->name}",
+        ]);
+    }
+
+    public function test_api_changes_are_logged_with_the_actor(): void
+    {
+        $tech = $this->user('support');
+        $ticket = $this->ticketFor($this->user('employee'));
+
+        Sanctum::actingAs($tech);
+        $this->putJson("/api/tickets/{$ticket->id}", ['status_id' => Ticket::RESOLVED])->assertOk();
+
+        $this->assertDatabaseHas('ticket_activities', [
+            'ticket_id' => $ticket->id, 'user_id' => $tech->id, 'description' => 'Status changed to Resolved',
+        ]);
+    }
+
 }
