@@ -11,5 +11,6 @@ class TicketAttachment extends Model
 {
     return $this->belongsTo(Ticket::class);
 }
+
 }
 

@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Notifications\TicketActivity;
+use Illuminate\Support\Facades\Notification;
 use App\Models\TicketStatus;
 use Database\Seeders\LookupSeeder;
 use App\Models\Ticket;
@@ -206,6 +208,21 @@ class TicketTest extends TestCase
     {
         $this->assertSame(url('/tickets'), route('tickets.index'));
         $this->assertSame(url('/api/tickets'), route('api.tickets.index'));
+    }
+
+        public function test_new_ticket_notifies_staff_by_bell_and_email(): void
+    {
+        Notification::fake();
+
+        $this->actingAs($this->user('employee'))->post('/tickets', [
+            'title' => 'VPN issue', 'description' => 'Cannot connect', 'category_id' => 3, 'priority_id' => 3,
+        ]);
+
+        Notification::assertSentTo(
+            $this->user('support'),
+            TicketActivity::class,
+            fn ($n, $channels) => in_array('database', $channels) && in_array('mail', $channels)
+        );
     }
 
 }
