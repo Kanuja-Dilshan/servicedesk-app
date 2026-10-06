@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AdminDepartmentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\AdminCategoryController;
 use App\Http\Controllers\AdminUserController;
@@ -13,6 +14,8 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth')->group(function () {
     Route::get('/', fn () => redirect()->route('dashboard'));
 Route::get('/dashboard', DashboardController::class)->name('dashboard');
+
+    Route::resource('departments', AdminDepartmentController::class)->only(['index', 'store', 'destroy']);
 
     Route::resource('tickets', TicketController::class)->except(['edit', 'destroy']);
     Route::post('tickets/{ticket}/close', [TicketController::class, 'close'])->name('tickets.close');
@@ -30,5 +33,12 @@ Route::get('notifications/{id}', [NotificationController::class, 'open'])->name(
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
+
+Route::middleware('can:admin')->prefix('admin')->name('admin.')->group(function () {
+    Route::resource('users', AdminUserController::class)->except(['show', 'destroy']);
+    Route::resource('categories', AdminCategoryController::class)->only(['index', 'store', 'destroy']);
+    Route::resource('departments', AdminDepartmentController::class)->only(['index', 'store', 'destroy']);
+});
+
 
 require __DIR__.'/auth.php';

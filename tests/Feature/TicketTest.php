@@ -225,4 +225,18 @@ class TicketTest extends TestCase
         );
     }
 
+        public function test_admin_can_manage_departments_but_not_delete_one_with_users(): void
+    {
+        $admin = $this->user('admin');
+
+        $this->actingAs($admin)->post('/admin/departments', ['name' => 'Human Resources'])->assertRedirect();
+        $this->assertDatabaseHas('departments', ['name' => 'Human Resources']);
+
+        $finance = \App\Models\Department::where('name', 'Finance')->first();
+        $this->actingAs($admin)->delete("/admin/departments/{$finance->id}")->assertSessionHasErrors('name');
+        $this->assertDatabaseHas('departments', ['name' => 'Finance']);
+
+        $this->actingAs($this->user('employee'))->post('/admin/departments', ['name' => 'Hack'])->assertForbidden();
+    }
+
 }
