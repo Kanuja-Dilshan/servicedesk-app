@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\AdminDepartmentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\AdminCategoryController;
@@ -40,5 +41,9 @@ Route::middleware('can:admin')->prefix('admin')->name('admin.')->group(function 
     Route::resource('departments', AdminDepartmentController::class)->only(['index', 'store', 'destroy']);
 });
 
+Route::middleware('can:admin')->group(function () {
+    Route::get('/admin/reports', [ReportController::class, 'index'])->name('admin.reports.index');
+    Route::get('/admin/reports/export', [ReportController::class, 'export'])->name('admin.reports.export');
+});
 
 require __DIR__.'/auth.php';
