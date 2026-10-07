@@ -15,6 +15,7 @@ class TicketController extends Controller
             ->visibleTo($r->user())
             ->search($r->query('q'))
             ->when($r->query('status'), fn ($q, $s) => $q->where('status_id', $s))
+                        ->when($r->boolean('mine'), fn ($q) => $q->assignedTo($r->user()->id))
             ->latest()->paginate(15)->withQueryString();
 
         return view('tickets.index', ['tickets' => $tickets, 'statuses' => TicketStatus::all()]);

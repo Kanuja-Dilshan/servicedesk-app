@@ -14,7 +14,21 @@
     </a>
   </div>
 
+    @if (auth()->user()->role === 'support')
+    <div class="mb-4 flex gap-2">
+      <a href="{{ route('tickets.index') }}"
+         class="rounded-xl px-4 py-2 text-sm font-semibold {{ request()->boolean('mine') ? 'bg-white text-slate-600 ring-1 ring-slate-200' : 'bg-indigo-600 text-white' }}">
+        All tickets
+      </a>
+      <a href="{{ route('tickets.index', ['mine' => 1]) }}"
+         class="rounded-xl px-4 py-2 text-sm font-semibold {{ request()->boolean('mine') ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200' }}">
+        My tickets
+      </a>
+    </div>
+  @endif
+
   <form class="mb-5 flex flex-col gap-3 rounded-2xl bg-white p-3 ring-1 ring-slate-900/5 shadow-[0_10px_25px_-8px_rgba(15,23,42,0.15)] sm:flex-row">
+        @if (request()->boolean('mine'))<input type="hidden" name="mine" value="1">@endif
     <input name="q" value="{{ request('q') }}" placeholder="Search tickets..." class="{{ $field }} flex-1">
     <select name="status" class="{{ $field }}">
       <option value="">All statuses</option>

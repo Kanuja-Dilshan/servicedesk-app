@@ -30,6 +30,11 @@ class Ticket extends Model
         return $term ? $q->where(fn ($w) => $w->where('title', 'like', "%$term%")->orWhere('description', 'like', "%$term%")) : $q;
     }
 
+        public function scopeAssignedTo(Builder $q, int $userId): Builder
+    {
+        return $q->where('assigned_to', $userId);
+    }
+
     public function activities() { return $this->hasMany(TicketActivity::class)->latest('id'); }
 
 protected static function booted(): void

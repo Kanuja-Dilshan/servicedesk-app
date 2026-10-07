@@ -9,7 +9,19 @@ class DashboardController extends Controller
 {
     public function __invoke(Request $r)
     {
-        $mine = fn () => Ticket::visibleTo($r->user());
+        $user = $r->user();
+        $isAdmin = $user->role === 'admin';
+
+        // admin: everything, support: tickets assigned to them, employee: tickets they created
+        $mine = function () use ($user, $isAdmin) {
+            $q = Ticket::query();
+
+            return match (true) {
+                $isAdmin => $q,
+                $user->role === 'support' => $q->where('assigned_to', $user->id),
+                default => $q->where('created_by', $user->id),
+            };
+        };
 
         $byStatus = TicketStatus::all()->mapWithKeys(
             fn ($s) => [$s->name => $mine()->where('status_id', $s->id)->count()]
@@ -21,7 +33,7 @@ class DashboardController extends Controller
         $overdue = $mine()->where('status_id', '<', Ticket::RESOLVED)
             ->whereNotNull('due_at')->where('due_at', '<', now())->count();
 
-        $unassigned = $r->user()->isStaff()
+        $unassigned = $isAdmin
             ? Ticket::whereNull('assigned_to')->where('status_id', '<', Ticket::RESOLVED)->count()
             : null;
 
