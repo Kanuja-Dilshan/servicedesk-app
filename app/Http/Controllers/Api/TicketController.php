@@ -20,6 +20,7 @@ class TicketController extends Controller
             ->visibleTo($r->user())
             ->search($r->query('q'))
             ->when($r->query('status'), fn ($q, $s) => $q->where('status_id', $s))
+                        ->when($r->query('priority'), fn ($q, $p) => $q->where('priority_id', $p))
             ->latest()->paginate(15)->withQueryString();
     }
 
@@ -52,7 +53,7 @@ class TicketController extends Controller
 
         return response()->json($ticket->load(self::WITH), 201);
     }
-    
+
     public function show(Request $r, Ticket $ticket)
     {
         $this->authorize('view', $ticket);

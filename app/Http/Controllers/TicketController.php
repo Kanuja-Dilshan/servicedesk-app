@@ -9,16 +9,21 @@ use Illuminate\Http\Request;
 
 class TicketController extends Controller
 {
-    public function index(Request $r)
+        public function index(Request $r)
     {
         $tickets = Ticket::with(['status', 'priority', 'category', 'technician'])
             ->visibleTo($r->user())
             ->search($r->query('q'))
             ->when($r->query('status'), fn ($q, $s) => $q->where('status_id', $s))
-                        ->when($r->boolean('mine'), fn ($q) => $q->assignedTo($r->user()->id))
+            ->when($r->query('priority'), fn ($q, $p) => $q->where('priority_id', $p))
+            ->when($r->boolean('mine'), fn ($q) => $q->assignedTo($r->user()->id))
             ->latest()->paginate(15)->withQueryString();
 
-        return view('tickets.index', ['tickets' => $tickets, 'statuses' => TicketStatus::all()]);
+        return view('tickets.index', [
+            'tickets' => $tickets,
+            'statuses' => TicketStatus::all(),
+            'priorities' => TicketPriority::all(),
+        ]);
     }
 
     public function create()

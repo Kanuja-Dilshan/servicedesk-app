@@ -34,6 +34,10 @@
       <option value="">All statuses</option>
       @foreach ($statuses as $s)<option value="{{ $s->id }}" @selected(request('status') == $s->id)>{{ $s->name }}</option>@endforeach
     </select>
+        <select name="priority" class="{{ $field }}">
+      <option value="">All priorities</option>
+      @foreach ($priorities as $p)<option value="{{ $p->id }}" @selected(request('priority') == $p->id)>{{ $p->name }}</option>@endforeach
+    </select>
     <button class="{{ $btn3d }} bg-[linear-gradient(to_bottom,#334155,#1e293b)] shadow-[0_4px_0_0_#0f172a,0_8px_14px_-4px_rgba(15,23,42,0.5)] active:shadow-[0_0_0_0_#0f172a]">
       Filter
     </button>
