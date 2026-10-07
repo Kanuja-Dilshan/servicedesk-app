@@ -33,6 +33,8 @@ class DashboardController extends Controller
         $overdue = $mine()->where('status_id', '<', Ticket::RESOLVED)
             ->whereNotNull('due_at')->where('due_at', '<', now())->count();
 
+                    $recent = $mine()->with(['status', 'priority', 'technician'])->latest()->take(5)->get();
+
         $unassigned = $isAdmin
             ? Ticket::whereNull('assigned_to')->where('status_id', '<', Ticket::RESOLVED)->count()
             : null;
@@ -43,6 +45,7 @@ class DashboardController extends Controller
             'total' => $byStatus->sum(),
             'overdue' => $overdue,
             'unassigned' => $unassigned,
+                        'recent' => $recent,
         ]);
     }
 }
