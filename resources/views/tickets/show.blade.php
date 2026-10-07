@@ -6,29 +6,59 @@
   $dark = 'bg-[linear-gradient(to_bottom,#334155,#1e293b)] shadow-[0_4px_0_0_#0f172a,0_8px_14px_-4px_rgba(15,23,42,0.5)] active:shadow-[0_0_0_0_#0f172a]';
   $green = 'bg-[linear-gradient(to_bottom,#22c55e,#16a34a)] shadow-[0_4px_0_0_#166534,0_10px_18px_-4px_rgba(22,163,74,0.5)] active:shadow-[0_0_0_0_#166534]';
   $label = 'text-xs font-semibold uppercase tracking-wide text-slate-500';
+  $avatar = 'flex shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,#6366f1,#8b5cf6)] font-semibold text-white shadow-[0_3px_8px_rgba(79,70,229,0.45)]';
+
+  $isOpenTicket = $ticket->status_id < \App\Models\Ticket::RESOLVED;
+  $overdue = $ticket->due_at && $ticket->due_at->isPast() && $isOpenTicket;
+  $visibleComments = $ticket->comments->filter(fn ($c) => ! $c->is_internal || auth()->user()->isStaff());
 @endphp
 <x-app-layout>
   <a href="{{ route('tickets.index') }}" class="text-sm text-slate-500 hover:text-indigo-600">&larr; All tickets</a>
-  <h1 class="mb-6 mt-2 text-2xl font-bold">#{{ $ticket->id }} {{ $ticket->title }}</h1>
+
+  {{-- Header --}}
+  <div class="mb-6 mt-2">
+    <h1 class="text-2xl font-bold"><span class="text-slate-400">#{{ $ticket->id }}</span> {{ $ticket->title }}</h1>
+    <div class="mt-3 flex flex-wrap items-center gap-2 text-sm text-slate-500">
+      <x-status-badge :status="$ticket->status->name" class="shadow-sm ring-1 ring-black/5" />
+      <x-priority-badge :priority="$ticket->priority->name" class="shadow-sm ring-1 ring-black/5" />
+      @if ($overdue)
+        <span class="rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold uppercase text-white shadow">Overdue</span>
+      @endif
+      <span>&middot; Opened {{ $ticket->created_at->diffForHumans() }} by {{ $ticket->creator->name }}</span>
+    </div>
+  </div>
 
   <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
     <div class="space-y-6 lg:col-span-2">
 
+      {{-- Description --}}
       <div class="{{ $card }} p-6">
         <h2 class="{{ $label }} mb-3">Description</h2>
-        <p class="whitespace-pre-line">{{ $ticket->description }}</p>
+        <p class="whitespace-pre-line leading-relaxed">{{ $ticket->description }}</p>
+
         @if ($ticket->attachments->count())
-          <div class="mt-5 flex flex-wrap gap-2">
-            @foreach ($ticket->attachments as $a)
-              <a href="{{ route('attachments.show', $a) }}" class="rounded-xl bg-white px-3 py-1.5 text-sm text-indigo-700 shadow ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md">📎 {{ $a->original_name }}</a>
-            @endforeach
+          <div class="mt-6 border-t border-slate-100 pt-4">
+            <h3 class="{{ $label }} mb-3">Attachments ({{ $ticket->attachments->count() }})</h3>
+            <div class="flex flex-wrap gap-2">
+              @foreach ($ticket->attachments as $a)
+                <a href="{{ route('attachments.show', $a) }}"
+                   class="flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm text-indigo-700 shadow ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md">
+                  <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+                  <span class="truncate">{{ $a->original_name }}</span>
+                </a>
+              @endforeach
+            </div>
           </div>
         @endif
       </div>
 
+      {{-- Employee confirmation --}}
       @can('respond', $ticket)
         <div class="space-y-4 rounded-2xl bg-gradient-to-br from-green-50 to-emerald-50 p-6 ring-1 ring-green-200 shadow-[0_20px_40px_-12px_rgba(22,163,74,0.3)]">
-          <p class="font-semibold text-green-900">IT Support marked this ticket as resolved. Is your issue fixed?</p>
+          <div class="flex items-start gap-3">
+            <svg class="mt-0.5 h-6 w-6 shrink-0 text-green-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <p class="font-semibold text-green-900">IT Support marked this ticket as resolved. Is your issue fixed?</p>
+          </div>
           <form method="POST" action="{{ route('tickets.close', $ticket) }}">@csrf
             <button class="{{ $btn3d }} {{ $green }}">Yes, close ticket</button>
           </form>
@@ -40,46 +70,87 @@
         </div>
       @endcan
 
+      {{-- Comments --}}
       <div class="{{ $card }} p-6">
-        <h2 class="mb-4 font-semibold">Comments</h2>
+        <h2 class="mb-4 font-semibold">Comments <span class="ms-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">{{ $visibleComments->count() }}</span></h2>
+
         <form method="POST" action="{{ route('comments.store', $ticket) }}" class="mb-6 space-y-3">@csrf
-          <textarea name="body" rows="3" placeholder="Add a comment..." class="{{ $field }}"></textarea>
+          <textarea name="body" rows="3" placeholder="Add a comment..." class="{{ $field }}">{{ old('body') }}</textarea>
+          @error('body')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
           <div class="flex items-center justify-between gap-3">
             @if (auth()->user()->isStaff())
-              <label class="text-sm text-slate-600"><input type="checkbox" name="is_internal" value="1" class="rounded"> Internal note (hidden from employee)</label>
+              <label class="inline-flex items-center gap-2 text-sm text-slate-600">
+                <input type="checkbox" name="is_internal" value="1" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                Internal note (hidden from employee)
+              </label>
             @else<span></span>@endif
             <button class="{{ $btn3d }} {{ $indigo }}">Post comment</button>
           </div>
         </form>
 
         <div class="space-y-4">
-          @foreach ($ticket->comments as $c)
-            @continue($c->is_internal && ! auth()->user()->isStaff())
+          @forelse ($visibleComments as $c)
             <div class="flex gap-3">
-              <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,#6366f1,#8b5cf6)] text-sm font-semibold text-white shadow-[0_3px_8px_rgba(79,70,229,0.45)]">{{ strtoupper(substr($c->user->name, 0, 1)) }}</div>
-              <div class="flex-1 rounded-2xl p-4 shadow-sm {{ $c->is_internal ? 'border border-yellow-200 bg-yellow-50' : 'bg-slate-50 ring-1 ring-slate-100' }}">
-                <p class="text-xs text-slate-500"><span class="font-semibold text-slate-700">{{ $c->user->name }}</span> · {{ $c->created_at->diffForHumans() }}{{ $c->is_internal ? ' · internal note' : '' }}</p>
-                <p class="mt-1 whitespace-pre-line text-sm">{{ $c->body }}</p>
+              <div class="{{ $avatar }} h-9 w-9 text-sm">{{ strtoupper(substr($c->user->name, 0, 1)) }}</div>
+              <div class="min-w-0 flex-1 rounded-2xl p-4 shadow-sm {{ $c->is_internal ? 'border border-yellow-200 bg-yellow-50' : 'bg-slate-50 ring-1 ring-slate-100' }}">
+                <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+                  <span class="font-semibold text-slate-700">{{ $c->user->name }}</span>
+                  @if (in_array($c->user->role, ['admin', 'support']))
+                    <span class="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-700">{{ $c->user->role === 'admin' ? 'Admin' : 'IT Support' }}</span>
+                  @endif
+                  @if ($c->is_internal)
+                    <span class="rounded-full bg-yellow-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-yellow-800">Internal note</span>
+                  @endif
+                  <span>&middot; {{ $c->created_at->diffForHumans() }}</span>
+                </div>
+                <p class="mt-2 whitespace-pre-line text-sm leading-relaxed">{{ $c->body }}</p>
               </div>
             </div>
-          @endforeach
+          @empty
+            <p class="py-6 text-center text-sm text-slate-500">No comments yet. Start the conversation above.</p>
+          @endforelse
         </div>
       </div>
     </div>
 
+    {{-- Sidebar --}}
     <div class="space-y-6">
       <div class="{{ $card }} p-6">
         <h2 class="{{ $label }} mb-4">Details</h2>
         <dl class="space-y-3 text-sm">
           <div class="flex items-center justify-between"><dt class="text-slate-500">Status</dt><dd><x-status-badge :status="$ticket->status->name" class="shadow-sm ring-1 ring-black/5" /></dd></div>
           <div class="flex items-center justify-between"><dt class="text-slate-500">Priority</dt><dd><x-priority-badge :priority="$ticket->priority->name" class="shadow-sm ring-1 ring-black/5" /></dd></div>
-          <div class="flex justify-between"><dt class="text-slate-500">Category</dt><dd>{{ $ticket->category->name }}</dd></div>
-          <div class="flex justify-between"><dt class="text-slate-500">Requester</dt><dd>{{ $ticket->creator->name }}</dd></div>
-          <div class="flex justify-between"><dt class="text-slate-500">Assigned to</dt><dd>{{ $ticket->technician?->name ?? 'Unassigned' }}</dd></div>
-          <div class="flex justify-between"><dt class="text-slate-500">Created</dt><dd>{{ $ticket->created_at->format('d M Y H:i') }}</dd></div>
+          <div class="flex justify-between gap-4"><dt class="text-slate-500">Category</dt><dd class="text-right">{{ $ticket->category->name }}</dd></div>
+          <div class="flex items-center justify-between gap-4">
+            <dt class="text-slate-500">Requester</dt>
+            <dd class="flex items-center gap-2">
+              <span class="{{ $avatar }} h-6 w-6 text-[11px]">{{ strtoupper(substr($ticket->creator->name, 0, 1)) }}</span>{{ $ticket->creator->name }}
+            </dd>
+          </div>
+          <div class="flex items-center justify-between gap-4">
+            <dt class="text-slate-500">Assigned to</dt>
+            <dd class="flex items-center gap-2">
+              @if ($ticket->technician)
+                <span class="{{ $avatar }} h-6 w-6 text-[11px]">{{ strtoupper(substr($ticket->technician->name, 0, 1)) }}</span>{{ $ticket->technician->name }}
+              @else
+                <span class="text-slate-400">Unassigned</span>
+              @endif
+            </dd>
+          </div>
+          <div class="flex justify-between gap-4"><dt class="text-slate-500">Created</dt><dd class="text-right">{{ $ticket->created_at->format('d M Y H:i') }}</dd></div>
           @if ($ticket->due_at)
-            <div class="flex justify-between"><dt class="text-slate-500">Due</dt>
-              <dd class="{{ $ticket->due_at->isPast() && $ticket->status_id < \App\Models\Ticket::RESOLVED ? 'font-bold text-red-600' : '' }}">{{ $ticket->due_at->format('d M H:i') }}</dd></div>
+            <div class="flex justify-between gap-4">
+              <dt class="text-slate-500">Due</dt>
+              <dd class="text-right {{ $overdue ? 'font-bold text-red-600' : '' }}">
+                {{ $ticket->due_at->format('d M H:i') }}
+                @if ($isOpenTicket)
+                  <span class="block text-xs font-normal {{ $overdue ? 'text-red-600' : 'text-slate-500' }}">{{ $overdue ? 'Overdue by ' . $ticket->due_at->diffForHumans(null, true) : 'Due ' . $ticket->due_at->diffForHumans() }}</span>
+                @endif
+              </dd>
+            </div>
+          @endif
+          @if ($ticket->resolved_at)
+            <div class="flex justify-between gap-4"><dt class="text-slate-500">Resolved</dt><dd class="text-right">{{ $ticket->resolved_at->format('d M Y H:i') }}</dd></div>
           @endif
         </dl>
       </div>
@@ -88,20 +159,27 @@
         <form method="POST" action="{{ route('tickets.update', $ticket) }}" class="{{ $card }} space-y-3 p-6">
           @csrf @method('PUT')
           <h2 class="{{ $label }}">Manage</h2>
-          <select name="status_id" class="{{ $field }}">@foreach ($statuses as $s)<option value="{{ $s->id }}" @selected($ticket->status_id == $s->id)>{{ $s->name }}</option>@endforeach</select>
-          <select name="assigned_to" class="{{ $field }}"><option value="">Unassigned</option>@foreach ($technicians as $t)<option value="{{ $t->id }}" @selected($ticket->assigned_to == $t->id)>{{ $t->name }}</option>@endforeach</select>
+          <div>
+            <label for="status_id" class="mb-1 block text-xs text-slate-500">Status</label>
+            <select id="status_id" name="status_id" class="{{ $field }}">@foreach ($statuses as $s)<option value="{{ $s->id }}" @selected($ticket->status_id == $s->id)>{{ $s->name }}</option>@endforeach</select>
+          </div>
+          <div>
+            <label for="assigned_to" class="mb-1 block text-xs text-slate-500">Assigned to</label>
+            <select id="assigned_to" name="assigned_to" class="{{ $field }}"><option value="">Unassigned</option>@foreach ($technicians as $t)<option value="{{ $t->id }}" @selected($ticket->assigned_to == $t->id)>{{ $t->name }}</option>@endforeach</select>
+          </div>
           <button class="{{ $btn3d }} {{ $dark }} w-full">Save changes</button>
         </form>
       @endcan
 
+      {{-- History --}}
       <div class="{{ $card }} p-6">
         <h2 class="{{ $label }} mb-4">History</h2>
-        <ul class="space-y-4 border-l-2 border-indigo-100 pl-5 text-sm">
+        <ul class="space-y-5 border-l-2 border-slate-200 pl-5 text-sm">
           @foreach ($ticket->activities as $a)
             <li class="relative">
-              <span class="absolute -left-[27px] top-1 h-3 w-3 rounded-full bg-indigo-500 ring-4 ring-white shadow"></span>
+              <span class="absolute -left-[27px] top-1 h-3 w-3 rounded-full {{ $a->user ? 'bg-indigo-500 ring-indigo-500/20' : 'bg-slate-400 ring-slate-400/20' }} ring-4"></span>
               <p>{{ $a->description }}</p>
-              <p class="text-xs text-slate-500">{{ $a->user?->name ?? 'System' }} · {{ $a->created_at->format('d M Y H:i') }}</p>
+              <p class="text-xs text-slate-500">{{ $a->user?->name ?? 'System' }} &middot; {{ $a->created_at->format('d M Y H:i') }}</p>
             </li>
           @endforeach
         </ul>
