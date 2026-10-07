@@ -239,4 +239,61 @@ class TicketTest extends TestCase
         $this->actingAs($this->user('employee'))->post('/admin/departments', ['name' => 'Hack'])->assertForbidden();
     }
 
+        public function test_new_tickets_are_shared_evenly_between_support_staff(): void
+    {
+        $emp = $this->user('employee');
+        $techs = collect([$this->user('support')])
+            ->merge(User::factory()->count(2)->create(['role' => 'support']));
+
+        for ($i = 0; $i < 6; $i++) {
+            $this->actingAs($emp)->post('/tickets', [
+                'title' => "Ticket {$i}", 'description' => 'Help', 'category_id' => 1, 'priority_id' => 2,
+            ]);
+        }
+
+        foreach ($techs as $tech) {
+            $this->assertSame(2, Ticket::where('assigned_to', $tech->id)->count());
+        }
+        $this->assertSame(0, Ticket::whereNull('assigned_to')->count());
+    }
+
+    public function test_auto_assign_picks_the_least_loaded_technician_and_logs_it_as_system(): void
+    {
+                $this->withoutExceptionHandling();
+        $emp = $this->user('employee');
+        $busy = $this->user('support');
+        $free = User::factory()->create(['role' => 'support']);
+
+        foreach (range(1, 2) as $i) {
+            $t = $this->ticketFor($emp);
+            $t->update(['assigned_to' => $busy->id, 'status_id' => Ticket::IN_PROGRESS]);
+        }
+
+        $this->actingAs($emp)->post('/tickets', [
+            'title' => 'New one', 'description' => 'Help', 'category_id' => 1, 'priority_id' => 2,
+        ]);
+
+        $ticket = Ticket::where('title', 'New one')->first();
+        $this->assertSame($free->id, $ticket->assigned_to);
+        $this->assertSame(Ticket::ASSIGNED, $ticket->status_id);
+        $this->assertDatabaseHas('ticket_activities', [
+            'ticket_id' => $ticket->id, 'user_id' => null, 'description' => "Auto-assigned to {$free->name}",
+        ]);
+        $this->assertCount(1, $free->notifications);
+    }
+
+    public function test_ticket_stays_open_when_there_is_no_support_staff(): void
+    {
+        User::where('role', 'support')->delete();
+
+        $this->actingAs($this->user('employee'))->post('/tickets', [
+            'title' => 'Nobody home', 'description' => 'Help', 'category_id' => 1, 'priority_id' => 2,
+        ])->assertRedirect();
+
+        $ticket = Ticket::where('title', 'Nobody home')->first();
+        $this->assertNull($ticket->assigned_to);
+        $this->assertSame(Ticket::OPEN, $ticket->status_id);
+        $this->assertCount(1, $this->user('admin')->notifications);
+    }
+
 }

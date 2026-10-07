@@ -1,6 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Services\TicketAssigner;
 use App\Notifications\TicketActivity;
 use Illuminate\Support\Facades\Notification;
 use App\Models\{Ticket, TicketCategory, TicketPriority, TicketStatus, User};
@@ -43,7 +44,7 @@ class TicketController extends Controller
         'due_at' => now()->addHours($sla[$priority->name] ?? 24),
     ]);
 
-    foreach ($r->file('files', []) as $file) {
+        foreach ($r->file('files', []) as $file) {
         $ticket->attachments()->create([
             'user_id' => $r->user()->id,
             'path' => $file->store("tickets/{$ticket->id}", 'local'),
@@ -51,12 +52,19 @@ class TicketController extends Controller
         ]);
     }
 
-    Notification::send(
-        User::whereIn('role', ['support', 'admin'])->get(),
-        new TicketActivity($ticket, "New ticket #{$ticket->id}: {$ticket->title}")
-    );
+    $tech = app(TicketAssigner::class)->assign($ticket);
 
-    return redirect()->route('tickets.show', $ticket)->with('status', 'Ticket created.');
+    if ($tech) {
+        $tech->notify(new TicketActivity($ticket, "New ticket #{$ticket->id} was assigned to you: {$ticket->title}"));
+    } else {
+        Notification::send(
+            User::whereIn('role', ['support', 'admin'])->get(),
+            new TicketActivity($ticket, "New ticket #{$ticket->id}: {$ticket->title}")
+        );
+    }
+
+    return redirect()->route('tickets.show', $ticket)
+        ->with('status', $tech ? "Ticket created and assigned to {$tech->name}." : 'Ticket created.');
 }
 
     public function show(Ticket $ticket)

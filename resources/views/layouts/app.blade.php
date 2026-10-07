@@ -4,6 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="{{ csrf_token() }}">
+  <script>
+  try {
+    var t = localStorage.getItem('theme');
+    if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.classList.add('dark');
+    }
+  } catch (e) {}
+</script>
   <title>{{ config('app.name', 'ServiceDesk') }}</title>
   <link rel="preconnect" href="https://fonts.bunny.net">
   <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700&display=swap" rel="stylesheet" />
@@ -62,6 +70,18 @@
         @endforeach
       @endcan
     </nav>
+
+        <div x-data="{ dark: document.documentElement.classList.contains('dark'),
+                   toggle() { this.dark = ! this.dark; document.documentElement.classList.toggle('dark', this.dark);
+                              try { localStorage.setItem('theme', this.dark ? 'dark' : 'light') } catch (e) {} } }"
+         class="px-4 pb-3">
+      <button type="button" @click="toggle()" class="flex w-full items-center justify-between rounded-lg bg-slate-800 px-3 py-2 text-sm text-slate-300 hover:bg-slate-700 hover:text-white">
+        <span x-text="dark ? '🌙 Dark mode' : '☀️ Light mode'"></span>
+        <span class="relative h-5 w-9 rounded-full transition" :class="dark ? 'bg-indigo-500' : 'bg-slate-600'">
+          <span class="absolute top-0.5 h-4 w-4 rounded-full bg-[#fff] transition-all" :class="dark ? 'left-[18px]' : 'left-0.5'"></span>
+        </span>
+      </button>
+    </div>
 
     <div class="border-t border-slate-800 p-4">
       <div class="flex items-center gap-3">

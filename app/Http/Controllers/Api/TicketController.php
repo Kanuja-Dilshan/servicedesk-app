@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Services\TicketAssigner;
 use App\Http\Controllers\Controller;
 use App\Models\{Ticket, TicketPriority, User};
 use App\Notifications\TicketActivity;
@@ -22,7 +23,7 @@ class TicketController extends Controller
             ->latest()->paginate(15)->withQueryString();
     }
 
-    public function store(Request $r)
+       public function store(Request $r)
     {
         $data = $r->validate([
             'title' => 'required|string|max:150',
@@ -38,14 +39,20 @@ class TicketController extends Controller
             'due_at' => now()->addHours(self::SLA_HOURS[$priority->name] ?? 24),
         ]);
 
-        Notification::send(
-            User::whereIn('role', ['support', 'admin'])->get(),
-            new TicketActivity($ticket, "New ticket #{$ticket->id}: {$ticket->title}")
-        );
+        $tech = app(TicketAssigner::class)->assign($ticket);
+
+        if ($tech) {
+            $tech->notify(new TicketActivity($ticket, "New ticket #{$ticket->id} was assigned to you: {$ticket->title}"));
+        } else {
+            Notification::send(
+                User::whereIn('role', ['support', 'admin'])->get(),
+                new TicketActivity($ticket, "New ticket #{$ticket->id}: {$ticket->title}")
+            );
+        }
 
         return response()->json($ticket->load(self::WITH), 201);
     }
-
+    
     public function show(Request $r, Ticket $ticket)
     {
         $this->authorize('view', $ticket);

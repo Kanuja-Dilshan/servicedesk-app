@@ -18,4 +18,5 @@ class User extends Authenticatable
     public function isStaff(): bool { return in_array($this->role, ['support', 'admin']); }
     public function department() { return $this->belongsTo(Department::class); }
     public function tickets() { return $this->hasMany(Ticket::class, 'created_by'); }
+    public function assignedTickets() { return $this->hasMany(Ticket::class, 'assigned_to'); }
 }
