@@ -147,7 +147,7 @@
     @endisset
 
     <main class="mx-auto w-full max-w-6xl p-4 sm:p-8">
-      @if (session('status'))
+            @if (session('status') && ! in_array(session('status'), ['profile-updated', 'password-updated', 'verification-link-sent']))
         <div x-data="{ show: true }" x-init="setTimeout(() => show = false, 5000)" x-show="show" x-transition.opacity
              class="mb-6 flex items-start justify-between gap-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 shadow-sm">
           <span class="flex items-start gap-2">
