@@ -1,6 +1,6 @@
 @php
-  $roleBadge = ['admin' => 'bg-violet-100 text-violet-800', 'support' => 'bg-blue-100 text-blue-800', 'employee' => 'bg-slate-100 text-slate-700'];
-  $roleDot = ['admin' => 'bg-violet-500', 'support' => 'bg-blue-500', 'employee' => 'bg-slate-400'];
+  $roleBadge = ['admin' => 'bg-violet-100 text-violet-800', 'support' => 'bg-blue-100 text-blue-800', 'employee' => 'bg-slate-100 text-slate-700','technician' => 'bg-yellow-100 text-yellow-800'];
+  $roleDot = ['admin' => 'bg-violet-500', 'support' => 'bg-blue-500', 'employee' => 'bg-slate-400', 'technician' => 'bg-yellow-500'];
   $total = method_exists($users, 'total') ? $users->total() : $users->count();
 @endphp
 <x-app-layout>

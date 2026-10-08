@@ -1,9 +1,10 @@
 @php
   $field = 'w-full rounded-xl border border-slate-200 bg-slate-50 text-sm shadow-inner transition focus:border-indigo-400 focus:bg-white focus:ring-4 focus:ring-indigo-100';
   $lab = 'mb-1.5 block text-sm font-semibold text-slate-700';
-  $roleHelp = [
+    $roleHelp = [
     'employee' => 'Can create tickets and follow their own tickets.',
-    'support' => 'IT Support: receives auto-assigned tickets and works on them.',
+    'support' => 'IT Support: receives new tickets, assigns them to technicians and reviews finished work.',
+    'technician' => 'Works only on tickets IT Support assigns to them, then sends them back for review.',
     'admin' => 'Full access: all tickets, users, categories and departments.',
   ];
   $currentRole = old('role', $user->role ?: 'employee');
@@ -58,7 +59,7 @@
         <div>
           <label for="role" class="{{ $lab }}">Role</label>
           <select id="role" name="role" x-model="role" class="{{ $field }}">
-            @foreach (['employee', 'support', 'admin'] as $role)<option value="{{ $role }}">{{ ucfirst($role) }}</option>@endforeach
+            @foreach (['employee', 'support', 'technician', 'admin'] as $role)<option value="{{ $role }}">{{ ucfirst($role) }}</option>@endforeach
           </select>
           @error('role')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
         </div>

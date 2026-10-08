@@ -4,12 +4,16 @@
   $subtitle = match ($user->role) {
       'admin' => 'Overview of every ticket in the system.',
       'support' => 'Tickets assigned to you.',
+      'technician' => 'Tickets IT Support assigned to you.',
       default => 'Tickets you have submitted.',
+            
   };
   $listTitle = match ($user->role) {
       'admin' => 'Latest tickets',
       'support' => 'Your latest assigned tickets',
+      'technician' => 'Your assigned tickets',
       default => 'Your latest tickets',
+            
   };
   $allLink = $user->role === 'support' ? route('tickets.index', ['mine' => 1]) : route('tickets.index');
 
@@ -43,6 +47,25 @@
       + New ticket
     </a>
   </div>
+
+    {{-- Ready for review (tickets returned by technicians) --}}
+  @if ($review->isNotEmpty())
+    <div class="{{ $card }} mb-8 overflow-hidden">
+      <div class="flex items-center gap-2 border-b border-slate-100 bg-yellow-50 px-6 py-3">
+        <span class="h-2.5 w-2.5 rounded-full bg-yellow-500"></span>
+        <h2 class="font-semibold text-yellow-800">Ready for review <span class="ms-1 rounded-full bg-yellow-100 px-2 py-0.5 text-xs">{{ $review->count() }}</span></h2>
+      </div>
+      @foreach ($review as $t)
+        <a href="{{ route('tickets.show', $t) }}" class="group flex items-center justify-between gap-4 border-b border-slate-100 px-6 py-4 transition last:border-b-0 hover:bg-indigo-50/50">
+          <div class="min-w-0">
+            <p class="truncate font-semibold text-slate-900 transition group-hover:text-indigo-600">{{ $t->title }}</p>
+            <p class="text-xs text-slate-500">#{{ $t->id }} &middot; returned {{ \Illuminate\Support\Carbon::parse($t->review_requested_at)->diffForHumans() }}</p>
+          </div>
+          <span class="shrink-0 text-sm font-medium text-indigo-600">Review &rarr;</span>
+        </a>
+      @endforeach
+    </div>
+  @endif
 
   {{-- Stat cards --}}
   <div class="mb-8 grid grid-cols-1 gap-5 {{ count($stats) === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2' }}">

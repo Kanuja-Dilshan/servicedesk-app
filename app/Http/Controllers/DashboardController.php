@@ -13,12 +13,14 @@ class DashboardController extends Controller
         $isAdmin = $user->role === 'admin';
 
         // admin: everything, support: tickets assigned to them, employee: tickets they created
-        $mine = function () use ($user, $isAdmin) {
+                $mine = function () use ($user, $isAdmin) {
             $q = Ticket::query();
 
             return match (true) {
                 $isAdmin => $q,
-                $user->role === 'support' => $q->where('assigned_to', $user->id),
+                // support: tickets assigned to them, plus tickets they handed to a technician
+                $user->role === 'support' => $q->where(fn ($w) => $w->where('assigned_to', $user->id)->orWhere('delegated_by', $user->id)),
+                $user->role === 'technician' => $q->where('assigned_to', $user->id),
                 default => $q->where('created_by', $user->id),
             };
         };
@@ -35,6 +37,14 @@ class DashboardController extends Controller
 
                     $recent = $mine()->with(['status', 'priority', 'technician'])->latest()->take(5)->get();
 
+                            $review = in_array($user->role, ['support', 'admin'])
+            ? Ticket::with(['status', 'priority', 'technician'])
+                ->whereNotNull('review_requested_at')
+                ->where('status_id', '<', Ticket::RESOLVED)
+                ->when(! $isAdmin, fn ($q) => $q->where('assigned_to', $user->id))
+                ->latest('review_requested_at')->take(10)->get()
+            : collect();
+
         $unassigned = $isAdmin
             ? Ticket::whereNull('assigned_to')->where('status_id', '<', Ticket::RESOLVED)->count()
             : null;
@@ -46,6 +56,7 @@ class DashboardController extends Controller
             'overdue' => $overdue,
             'unassigned' => $unassigned,
                         'recent' => $recent,
+                                    'review' => $review,
         ]);
     }
 }

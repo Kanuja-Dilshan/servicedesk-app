@@ -24,7 +24,7 @@ class AdminUserController extends Controller
             'name' => 'required|string|max:100',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:8',
-            'role' => 'required|in:employee,support,admin',
+            'role' => 'required|in:employee,support,technician,admin',
             'department_id' => 'nullable|exists:departments,id',
         ]);
         User::create($data);
@@ -43,7 +43,7 @@ class AdminUserController extends Controller
             'name' => 'required|string|max:100',
             'email' => ['required', 'email', Rule::unique('users', 'email')->ignore($user->id)],
             'password' => 'nullable|string|min:8',
-            'role' => 'required|in:employee,support,admin',
+            'role' => 'required|in:employee,support,technician,admin',
             'department_id' => 'nullable|exists:departments,id',
         ]);
 

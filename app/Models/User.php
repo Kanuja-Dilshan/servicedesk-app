@@ -15,7 +15,8 @@ class User extends Authenticatable
     protected function casts(): array { return ['email_verified_at' => 'datetime', 'password' => 'hashed']; }
 
     public function isAdmin(): bool { return $this->role === 'admin'; }
-    public function isStaff(): bool { return in_array($this->role, ['support', 'admin']); }
+        public function isTechnician(): bool { return $this->role === 'technician'; }
+    public function isStaff(): bool { return in_array($this->role, ['support', 'technician', 'admin']); }
     public function department() { return $this->belongsTo(Department::class); }
     public function tickets() { return $this->hasMany(Ticket::class, 'created_by'); }
     public function assignedTickets() { return $this->hasMany(Ticket::class, 'assigned_to'); }

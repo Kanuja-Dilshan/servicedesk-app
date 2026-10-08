@@ -20,9 +20,13 @@ class Ticket extends Model
     public function assignments() { return $this->hasMany(TicketAssignment::class); }
     public function attachments() { return $this->hasMany(TicketAttachment::class); }
 
-    public function scopeVisibleTo(Builder $q, User $u): Builder
+       public function scopeVisibleTo(Builder $q, User $u): Builder
     {
-        return $u->isStaff() ? $q : $q->where('created_by', $u->id);
+        return match (true) {
+            $u->isAdmin() || $u->role === 'support' => $q,
+            $u->isTechnician() => $q->where('assigned_to', $u->id),
+            default => $q->where('created_by', $u->id),
+        };
     }
 
     public function scopeSearch(Builder $q, ?string $term): Builder

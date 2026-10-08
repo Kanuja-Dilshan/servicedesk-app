@@ -52,6 +52,35 @@
         @endif
       </div>
 
+            {{-- Technician finished: IT Support needs to review --}}
+      @can('manage', $ticket)
+        @if ($ticket->review_requested_at && $isOpenTicket)
+          <div class="rounded-2xl border border-yellow-200 bg-yellow-50 p-5 shadow-sm">
+            <p class="font-semibold text-yellow-800">The technician finished the work on this ticket.</p>
+            <p class="mt-1 text-sm text-yellow-800">Read the internal notes below, then set the status to Resolved (Manage panel) so the requester can confirm.</p>
+          </div>
+        @endif
+      @endcan
+
+      {{-- Technician: start / finish work --}}
+      @can('work', $ticket)
+        <div class="{{ $card }} space-y-4 p-6">
+          <h2 class="font-semibold">Your work on this ticket</h2>
+          @if ((int) $ticket->status_id < \App\Models\Ticket::IN_PROGRESS)
+            <form method="POST" action="{{ route('tickets.start', $ticket) }}">@csrf
+              <button class="{{ $btn3d }} {{ $dark }}">Start work (set In Progress)</button>
+            </form>
+          @endif
+          <form method="POST" action="{{ route('tickets.complete', $ticket) }}" class="space-y-3">@csrf
+            <label for="note" class="block text-sm font-semibold text-slate-700">What did you do?</label>
+            <textarea id="note" name="note" rows="3" required placeholder="e.g. Replaced the router, the connection is working now" class="{{ $field }}">{{ old('note') }}</textarea>
+            @error('note')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
+            <p class="text-xs text-slate-500">Saved as an internal note. The ticket goes back to IT Support for review.</p>
+            <button class="{{ $btn3d }} {{ $green }}">Work done, send back to IT Support</button>
+          </form>
+        </div>
+      @endcan
+
       {{-- Employee confirmation --}}
       @can('respond', $ticket)
         <div class="space-y-4 rounded-2xl bg-gradient-to-br from-green-50 to-emerald-50 p-6 ring-1 ring-green-200 shadow-[0_20px_40px_-12px_rgba(22,163,74,0.3)]">
@@ -169,6 +198,28 @@
           </div>
           <button class="{{ $btn3d }} {{ $dark }} w-full">Save changes</button>
         </form>
+      @endcan
+
+            @can('manage', $ticket)
+        @if ($isOpenTicket)
+          <form method="POST" action="{{ route('tickets.delegate', $ticket) }}" class="{{ $card }} space-y-3 p-6">
+            @csrf
+            <h2 class="{{ $label }}">Assign to technician</h2>
+            @if ($delegates->isEmpty())
+              <p class="text-sm text-slate-500">No technicians yet. An admin can add users with the Technician role.</p>
+            @else
+              <select name="technician_id" required class="{{ $field }}">
+                <option value="">Choose technician...</option>
+                @foreach ($delegates as $d)<option value="{{ $d->id }}" @selected(old('technician_id') == $d->id)>{{ $d->name }}</option>@endforeach
+              </select>
+              @error('technician_id')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
+              <textarea name="note" rows="3" required placeholder="Note for the technician..." class="{{ $field }}">{{ old('note') }}</textarea>
+              @error('note')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
+              <p class="text-xs text-slate-500">Saved as an internal note. The requester cannot see it.</p>
+              <button class="{{ $btn3d }} {{ $indigo }} w-full">Assign to technician</button>
+            @endif
+          </form>
+        @endif
       @endcan
 
       {{-- History --}}

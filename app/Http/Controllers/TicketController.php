@@ -1,6 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
+use Illuminate\Validation\Rule;
 use App\Services\TicketAssigner;
 use App\Notifications\TicketActivity;
 use Illuminate\Support\Facades\Notification;
@@ -78,10 +79,11 @@ class TicketController extends Controller
         $this->authorize('view', $ticket);
         $ticket->load(['comments.user', 'attachments', 'status', 'priority', 'category', 'creator', 'technician', 'activities.user']);
 
-        return view('tickets.show', [
+                return view('tickets.show', [
             'ticket' => $ticket,
             'statuses' => TicketStatus::all(),
             'technicians' => User::whereIn('role', ['support', 'admin'])->get(),
+            'delegates' => User::where('role', 'technician')->orderBy('name')->get(),
         ]);
     }
 
@@ -105,6 +107,9 @@ class TicketController extends Controller
     $data['resolved_at'] = (int) $data['status_id'] >= Ticket::RESOLVED ? ($ticket->resolved_at ?? now()) : null;
 
     $ticket->update($data);
+        if ((int) $ticket->status_id >= Ticket::RESOLVED && $ticket->review_requested_at) {
+        $ticket->forceFill(['review_requested_at' => null])->saveQuietly();
+    }
     $ticket->refresh()->load('status');
 
     if ($ticket->assigned_to && (int) $ticket->assigned_to !== $oldAssignee && $ticket->assigned_to !== $r->user()->id) {
@@ -151,6 +156,77 @@ public function reopen(Request $r, Ticket $ticket)
     }
 
     return back()->with('status', 'Ticket reopened.');
-}     
+}  
+
+    /** IT Support hands the ticket to a technician, with a note for them. */
+    public function delegate(Request $r, Ticket $ticket)
+    {
+        $this->authorize('manage', $ticket);
+
+        if ((int) $ticket->status_id >= Ticket::RESOLVED) {
+            return back()->with('error', 'Reopen the ticket before assigning it to a technician.');
+        }
+
+        $data = $r->validate([
+            'technician_id' => ['required', Rule::exists('users', 'id')->where('role', 'technician')],
+            'note' => 'required|string|max:2000',
+        ]);
+        $tech = User::findOrFail($data['technician_id']);
+        $me = $r->user();
+
+        Ticket::withoutEvents(fn () => $ticket->forceFill([
+            'assigned_to' => $tech->id,
+            'status_id' => Ticket::ASSIGNED,
+            'delegated_by' => $me->id,
+            'review_requested_at' => null,
+        ])->save());
+
+        $ticket->assignments()->create(['technician_id' => $tech->id, 'assigned_by' => $me->id]);
+        $ticket->comments()->create(['user_id' => $me->id, 'body' => $data['note'], 'is_internal' => true]);
+        $ticket->activities()->create(['user_id' => $me->id, 'description' => "Assigned to technician {$tech->name}"]);
+        $tech->notify(new TicketActivity($ticket, "Ticket #{$ticket->id} was assigned to you by {$me->name}: {$ticket->title}"));
+
+        return back()->with('status', "Ticket assigned to {$tech->name}.");
+    }
+
+    /** The technician starts working: status becomes In Progress. */
+    public function start(Request $r, Ticket $ticket)
+    {
+        $this->authorize('work', $ticket);
+
+        Ticket::withoutEvents(fn () => $ticket->forceFill(['status_id' => Ticket::IN_PROGRESS])->save());
+        $ticket->activities()->create(['user_id' => $r->user()->id, 'description' => 'Started working on this ticket']);
+        $ticket->creator->notify(new TicketActivity($ticket, "Ticket #{$ticket->id} is now In Progress"));
+
+        return back()->with('status', 'Marked as In Progress.');
+    }
+
+    /** The technician finishes: the ticket goes back to the IT Support person who assigned it. */
+    public function complete(Request $r, Ticket $ticket)
+    {
+        $this->authorize('work', $ticket);
+        $data = $r->validate(['note' => 'required|string|max:2000']);
+        $me = $r->user();
+
+        $back = User::whereIn('role', ['support', 'admin'])->find($ticket->delegated_by)
+            ?? User::where('role', 'admin')->first();
+
+        Ticket::withoutEvents(fn () => $ticket->forceFill([
+            'assigned_to' => $back?->id,
+            'status_id' => Ticket::IN_PROGRESS,
+            'review_requested_at' => now(),
+        ])->save());
+
+        $ticket->comments()->create(['user_id' => $me->id, 'body' => "Work completed: {$data['note']}", 'is_internal' => true]);
+        $ticket->activities()->create([
+            'user_id' => $me->id,
+            'description' => $back
+                ? "Work completed by {$me->name}, returned to {$back->name} for review"
+                : "Work completed by {$me->name}",
+        ]);
+        $back?->notify(new TicketActivity($ticket, "Ticket #{$ticket->id}: {$me->name} finished the work. Please review it."));
+
+        return redirect()->route('dashboard')->with('status', 'Thanks! The ticket was sent back to IT Support for review.');
+    }
 
 }

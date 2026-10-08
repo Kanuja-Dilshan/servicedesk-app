@@ -296,4 +296,61 @@ class TicketTest extends TestCase
         $this->assertCount(1, $this->user('admin')->notifications);
     }
 
+        public function test_support_can_assign_a_ticket_to_a_technician_with_a_note(): void
+    {
+        $emp = $this->user('employee');
+        $support = $this->user('support');
+        $tech = User::factory()->create(['role' => 'technician']);
+        $ticket = $this->ticketFor($emp);
+
+        $this->actingAs($support)->post("/tickets/{$ticket->id}/delegate", [
+            'technician_id' => $tech->id, 'note' => 'Please check the router',
+        ])->assertSessionHasNoErrors();
+
+        $ticket->refresh();
+        $this->assertSame($tech->id, $ticket->assigned_to);
+        $this->assertEquals($support->id, $ticket->delegated_by);
+        $this->assertSame(Ticket::ASSIGNED, $ticket->status_id);
+        $this->assertDatabaseHas('ticket_comments', [
+            'ticket_id' => $ticket->id, 'is_internal' => true, 'body' => 'Please check the router',
+        ]);
+        $this->assertCount(1, $tech->notifications);
+    }
+
+    public function test_finished_work_goes_back_to_the_support_person_for_review(): void
+    {
+        $emp = $this->user('employee');
+        $support = $this->user('support');
+        $tech = User::factory()->create(['role' => 'technician']);
+        $ticket = $this->ticketFor($emp);
+
+        $this->actingAs($support)->post("/tickets/{$ticket->id}/delegate", [
+            'technician_id' => $tech->id, 'note' => 'Please check the router',
+        ]);
+        $this->actingAs($tech)->post("/tickets/{$ticket->id}/complete", ['note' => 'Router replaced'])
+            ->assertSessionHasNoErrors();
+
+        $ticket->refresh();
+        $this->assertSame($support->id, $ticket->assigned_to);
+        $this->assertNotNull($ticket->review_requested_at);
+        $this->assertSame(Ticket::IN_PROGRESS, $ticket->status_id);
+        $this->assertTrue($support->fresh()->notifications->contains(
+            fn ($n) => str_contains($n->data['message'], 'finished the work')
+        ));
+    }
+
+    public function test_technician_only_sees_and_works_on_tickets_assigned_to_them(): void
+    {
+        $emp = $this->user('employee');
+        $tech = User::factory()->create(['role' => 'technician']);
+
+        $mine = $this->ticketFor($emp);
+        $mine->update(['assigned_to' => $tech->id, 'status_id' => Ticket::ASSIGNED]);
+        $other = $this->ticketFor($emp);
+
+        $this->actingAs($tech)->get("/tickets/{$mine->id}")->assertOk();
+        $this->actingAs($tech)->get("/tickets/{$other->id}")->assertForbidden();
+        $this->actingAs($tech)->put("/tickets/{$mine->id}", ['status_id' => Ticket::RESOLVED])->assertForbidden();
+    }
+
 }
