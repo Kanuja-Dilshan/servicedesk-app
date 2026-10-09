@@ -10,15 +10,15 @@
       <p class="text-slate-500">Manage your account details and security.</p>
     </div>
 
-    {{-- Identity card --}}
+        {{-- Identity card --}}
     <div class="{{ $card }} overflow-hidden">
       <div class="h-24 bg-[linear-gradient(135deg,#6366f1,#8b5cf6)]"></div>
       <div class="px-6 pb-6 sm:px-8">
-        <div class="-mt-10 flex flex-col gap-4 sm:flex-row sm:items-end">
-          <div class="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#6366f1,#8b5cf6)] text-3xl font-bold text-white shadow-[0_8px_20px_rgba(79,70,229,0.5)]">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-5">
+          <div class="-mt-10 flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#334155,#0f172a)] text-3xl font-bold text-white shadow-[0_8px_20px_rgba(15,23,42,0.35)] ring-4 ring-white">
             {{ strtoupper(substr($user->name, 0, 1)) }}
           </div>
-          <div class="min-w-0 pb-1">
+          <div class="min-w-0 sm:pt-3">
             <h2 class="truncate text-xl font-bold">{{ $user->name }}</h2>
             <p class="truncate text-sm text-slate-500">{{ $user->email }}</p>
           </div>
