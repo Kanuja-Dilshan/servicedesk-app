@@ -36,17 +36,60 @@
         <h2 class="{{ $label }} mb-3">Description</h2>
         <p class="whitespace-pre-line leading-relaxed">{{ $ticket->description }}</p>
 
-        @if ($ticket->attachments->count())
-          <div class="mt-6 border-t border-slate-100 pt-4">
+                @if ($ticket->attachments->count())
+          @php
+            $isImage = fn ($a) => in_array(strtolower(pathinfo($a->path, PATHINFO_EXTENSION)), ['png', 'jpg', 'jpeg']);
+            $images = $ticket->attachments->filter($isImage);
+            $others = $ticket->attachments->reject($isImage);
+          @endphp
+          <div x-data="{ img: null }" @keydown.escape.window="img = null" class="mt-6 border-t border-slate-100 pt-4">
             <h3 class="{{ $label }} mb-3">Attachments ({{ $ticket->attachments->count() }})</h3>
-            <div class="flex flex-wrap gap-2">
-              @foreach ($ticket->attachments as $a)
-                <a href="{{ route('attachments.show', $a) }}"
-                   class="flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm text-indigo-700 shadow ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md">
-                  <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
-                  <span class="truncate">{{ $a->original_name }}</span>
-                </a>
-              @endforeach
+
+            @if ($images->count())
+              <div class="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                @foreach ($images as $a)
+                  <button type="button"
+                          @click="img = { src: '{{ route('attachments.show', $a) }}', name: @js($a->original_name) }"
+                          class="group overflow-hidden rounded-xl bg-white text-left shadow ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md">
+                    <img src="{{ route('attachments.show', $a) }}" alt="{{ $a->original_name }}" loading="lazy"
+                         class="h-28 w-full object-cover transition duration-200 group-hover:scale-105">
+                    <span class="block truncate px-2 py-1.5 text-xs text-slate-600">{{ $a->original_name }}</span>
+                  </button>
+                @endforeach
+              </div>
+            @endif
+
+            @if ($others->count())
+              <div class="flex flex-wrap gap-2">
+                @foreach ($others as $a)
+                  <span class="inline-flex items-center overflow-hidden rounded-xl bg-white text-sm shadow ring-1 ring-slate-200">
+                    <a href="{{ route('attachments.show', $a) }}" target="_blank" rel="noopener"
+                       class="flex items-center gap-2 px-3 py-2 text-indigo-700 transition hover:bg-indigo-50">
+                      <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+                      <span class="max-w-[12rem] truncate">{{ $a->original_name }}</span>
+                    </a>
+                    <a href="{{ route('attachments.show', [$a, 'download' => 1]) }}" title="Download"
+                       class="border-s border-slate-200 px-2.5 py-2 text-slate-400 transition hover:bg-slate-50 hover:text-indigo-600">
+                      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                    </a>
+                  </span>
+                @endforeach
+              </div>
+            @endif
+
+            {{-- Lightbox --}}
+            <div x-show="img" x-cloak x-transition.opacity @click.self="img = null"
+                 class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 p-4 backdrop-blur-sm">
+              <div class="max-h-full w-full max-w-4xl">
+                <img :src="img && img.src" :alt="img && img.name" class="mx-auto max-h-[80vh] rounded-xl shadow-2xl">
+                <div class="mt-3 flex items-center justify-between gap-4 text-sm text-white">
+                  <span class="truncate" x-text="img && img.name"></span>
+                  <span class="flex shrink-0 gap-4">
+                    <a :href="img && (img.src + '?download=1')" class="font-semibold hover:underline">Download</a>
+                    <button type="button" @click="img = null" class="font-semibold hover:underline">Close</button>
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         @endif
