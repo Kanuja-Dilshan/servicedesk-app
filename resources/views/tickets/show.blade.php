@@ -235,6 +235,10 @@
             <label for="status_id" class="mb-1 block text-xs text-slate-500">Status</label>
             <select id="status_id" name="status_id" class="{{ $field }}">@foreach ($statuses as $s)<option value="{{ $s->id }}" @selected($ticket->status_id == $s->id)>{{ $s->name }}</option>@endforeach</select>
           </div>
+                    <div>
+            <label for="priority_id" class="mb-1 block text-xs text-slate-500">Priority</label>
+            <select id="priority_id" name="priority_id" class="{{ $field }}">@foreach ($priorities as $p)<option value="{{ $p->id }}" @selected($ticket->priority_id == $p->id)>{{ $p->name }}</option>@endforeach</select>
+          </div>
           <div>
             <label for="assigned_to" class="mb-1 block text-xs text-slate-500">Assigned to</label>
             <select id="assigned_to" name="assigned_to" class="{{ $field }}"><option value="">Unassigned</option>@foreach ($technicians as $t)<option value="{{ $t->id }}" @selected($ticket->assigned_to == $t->id)>{{ $t->name }}</option>@endforeach</select>

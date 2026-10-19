@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Notification;
 
 class TicketController extends Controller
 {
-    private const SLA_HOURS = ['Low' => 72, 'Medium' => 24, 'High' => 8, 'Critical' => 4];
+    
     private const WITH = ['status', 'priority', 'category', 'creator:id,name', 'technician:id,name'];
 
     public function index(Request $r)
@@ -30,14 +30,15 @@ class TicketController extends Controller
             'title' => 'required|string|max:150',
             'description' => 'required|string|max:5000',
             'category_id' => 'required|exists:ticket_categories,id',
-            'priority_id' => 'required|exists:ticket_priorities,id',
+            
         ]);
-        $priority = TicketPriority::find($data['priority_id']);
+                // Priority is set by IT Support, not the requester.
+        $priority = TicketPriority::where('name', Ticket::DEFAULT_PRIORITY)->first() ?? TicketPriority::first();
 
         $ticket = Ticket::create($data + [
-            'created_by' => $r->user()->id,
-            'status_id' => Ticket::OPEN,
-            'due_at' => now()->addHours(self::SLA_HOURS[$priority->name] ?? 24),
+                        'status_id' => Ticket::OPEN,
+            'priority_id' => $priority->id,
+            'due_at' => now()->addHours(Ticket::SLA_HOURS[$priority->name] ?? 24),
         ]);
 
         $tech = app(TicketAssigner::class)->assign($ticket);
@@ -74,6 +75,7 @@ class TicketController extends Controller
         $data = $r->validate([
             'status_id' => 'required|exists:ticket_statuses,id',
             'assigned_to' => 'nullable|exists:users,id',
+                        'priority_id' => 'sometimes|exists:ticket_priorities,id',
         ]);
 
         $oldStatus = (int) $ticket->status_id;
@@ -86,6 +88,11 @@ class TicketController extends Controller
             }
         }
         $data['resolved_at'] = (int) $data['status_id'] >= Ticket::RESOLVED ? ($ticket->resolved_at ?? now()) : null;
+
+                if (isset($data['priority_id']) && (int) $data['priority_id'] !== (int) $ticket->priority_id) {
+            $name = TicketPriority::find($data['priority_id'])->name;
+            $data['due_at'] = $ticket->created_at->copy()->addHours(Ticket::SLA_HOURS[$name] ?? 24);
+        }
 
         $ticket->update($data);
         $ticket->refresh()->load('status');

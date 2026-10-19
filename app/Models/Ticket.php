@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Builder;
 class Ticket extends Model
 {
     public const OPEN = 1, ASSIGNED = 2, IN_PROGRESS = 3, WAITING = 4, RESOLVED = 5, CLOSED = 6;
+        // Hours to resolve, by priority name. IT Support sets the priority; employees do not.
+    public const SLA_HOURS = ['Low' => 72, 'Medium' => 24, 'High' => 8, 'Critical' => 4];
+    public const DEFAULT_PRIORITY = 'Medium'; // placeholder until IT Support triages the ticket
 
     protected $fillable = ['title', 'description', 'category_id', 'priority_id', 'status_id', 'created_by', 'assigned_to', 'due_at', 'resolved_at'];
     protected function casts(): array { return ['due_at' => 'datetime', 'resolved_at' => 'datetime']; }
@@ -48,6 +51,9 @@ protected static function booted(): void
     static::updated(function (Ticket $t) {
         if ($t->wasChanged('status_id')) {
             $t->log('Status changed to ' . TicketStatus::find($t->status_id)->name);
+        }
+                if ($t->wasChanged('priority_id')) {
+            $t->log('Priority set to ' . TicketPriority::find($t->priority_id)?->name);
         }
         if ($t->wasChanged('assigned_to')) {
             $name = $t->assigned_to ? User::find($t->assigned_to)?->name : null;

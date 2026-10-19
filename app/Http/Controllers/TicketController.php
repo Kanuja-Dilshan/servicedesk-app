@@ -29,7 +29,7 @@ class TicketController extends Controller
 
     public function create()
     {
-        return view('tickets.create', ['categories' => TicketCategory::all(), 'priorities' => TicketPriority::all()]);
+       return view('tickets.create', ['categories' => TicketCategory::all()]);
     }
 
     public function store(Request $r)
@@ -38,17 +38,17 @@ class TicketController extends Controller
         'title' => 'required|string|max:150',
         'description' => 'required|string|max:5000',
         'category_id' => 'required|exists:ticket_categories,id',
-        'priority_id' => 'required|exists:ticket_priorities,id',
         'files.*' => 'file|max:4096|mimes:png,jpg,jpeg,pdf,txt,log',
     ]);
 
-    $sla = ['Low' => 72, 'Medium' => 24, 'High' => 8, 'Critical' => 4]; // hours to resolve
-    $priority = TicketPriority::find($data['priority_id']);
+        // Employees do not choose a priority. Start with the default; IT Support sets the real one.
+    $priority = TicketPriority::where('name', Ticket::DEFAULT_PRIORITY)->first() ?? TicketPriority::first();
 
     $ticket = Ticket::create($data + [
         'created_by' => $r->user()->id,
         'status_id' => Ticket::OPEN,
-        'due_at' => now()->addHours($sla[$priority->name] ?? 24),
+        'priority_id' => $priority->id,
+        'due_at' => now()->addHours(Ticket::SLA_HOURS[$priority->name] ?? 24),
     ]);
 
         foreach ($r->file('files', []) as $file) {
@@ -82,6 +82,7 @@ class TicketController extends Controller
                 return view('tickets.show', [
             'ticket' => $ticket,
             'statuses' => TicketStatus::all(),
+                        'priorities' => TicketPriority::all(),
             'technicians' => User::whereIn('role', ['support', 'admin'])->get(),
             'delegates' => User::where('role', 'technician')->orderBy('name')->get(),
         ]);
@@ -93,6 +94,7 @@ class TicketController extends Controller
     $data = $r->validate([
         'status_id' => 'required|exists:ticket_statuses,id',
         'assigned_to' => 'nullable|exists:users,id',
+                'priority_id' => 'sometimes|exists:ticket_priorities,id',
     ]);
 
     $oldStatus = (int) $ticket->status_id;
@@ -105,6 +107,12 @@ class TicketController extends Controller
         }
     }
     $data['resolved_at'] = (int) $data['status_id'] >= Ticket::RESOLVED ? ($ticket->resolved_at ?? now()) : null;
+
+        // A new priority restarts the SLA clock from when the ticket was opened.
+    if (isset($data['priority_id']) && (int) $data['priority_id'] !== (int) $ticket->priority_id) {
+        $name = TicketPriority::find($data['priority_id'])->name;
+        $data['due_at'] = $ticket->created_at->copy()->addHours(Ticket::SLA_HOURS[$name] ?? 24);
+    }
 
     $ticket->update($data);
         if ((int) $ticket->status_id >= Ticket::RESOLVED && $ticket->review_requested_at) {

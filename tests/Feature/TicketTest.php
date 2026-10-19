@@ -50,6 +50,27 @@ class TicketTest extends TestCase
         $this->assertNotNull($ticket->due_at);
     }
 
+        public function test_employee_ticket_gets_default_priority_and_support_can_change_it(): void
+    {
+        $emp = $this->user('employee');
+        $support = $this->user('support');
+
+        $this->actingAs($emp)->post('/tickets', [
+            'title' => 'VPN issue', 'description' => 'Cannot connect', 'category_id' => 3, 'priority_id' => 4,
+        ])->assertRedirect();
+
+        $ticket = Ticket::where('created_by', $emp->id)->first();
+        $this->assertSame('Medium', $ticket->priority->name);
+
+        $this->actingAs($support)->put("/tickets/{$ticket->id}", [
+            'status_id' => Ticket::OPEN, 'priority_id' => 4,
+        ])->assertRedirect();
+
+        $ticket->refresh();
+        $this->assertSame(4, (int) $ticket->priority_id);
+        $this->assertEquals($ticket->created_at->copy()->addHours(4)->timestamp, $ticket->due_at->timestamp);
+    }
+
     public function test_employee_cannot_view_another_employees_ticket(): void
     {
         $ticket = $this->ticketFor($this->user('employee'));

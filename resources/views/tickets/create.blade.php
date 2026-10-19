@@ -1,9 +1,7 @@
 @php
   $field = 'w-full rounded-xl border border-slate-200 bg-slate-50 text-sm shadow-inner transition focus:border-indigo-400 focus:bg-white focus:ring-4 focus:ring-indigo-100';
   $lab = 'mb-1.5 block text-sm font-semibold text-slate-700';
-  $sla = ['Low' => '72h', 'Medium' => '24h', 'High' => '8h', 'Critical' => '4h'];
-  $dot = ['Low' => 'bg-slate-400', 'Medium' => 'bg-blue-500', 'High' => 'bg-orange-500', 'Critical' => 'bg-red-500'];
-  $selectedPriority = old('priority_id') ?: optional($priorities->firstWhere('name', 'Medium'))->id;
+ 
 @endphp
 <x-app-layout>
 <div class="mx-auto max-w-3xl">
@@ -82,24 +80,7 @@
       </div>
 
       {{-- Priority cards --}}
-      <div>
-        <span class="{{ $lab }}">Priority</span>
-        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          @foreach ($priorities as $p)
-            <label class="cursor-pointer">
-              <input type="radio" name="priority_id" value="{{ $p->id }}" class="peer sr-only" @checked($selectedPriority == $p->id)>
-              <div class="rounded-xl border-2 border-slate-200 bg-slate-50 px-3 py-3 text-center transition hover:border-indigo-300 peer-checked:border-indigo-500 peer-checked:bg-indigo-500/10 peer-checked:shadow-[0_4px_12px_-2px_rgba(99,102,241,0.35)] peer-focus-visible:ring-4 peer-focus-visible:ring-indigo-100">
-                <span class="mx-auto mb-1.5 block h-2.5 w-2.5 rounded-full {{ $dot[$p->name] ?? 'bg-slate-400' }}"></span>
-                <span class="block text-sm font-semibold text-slate-800">{{ $p->name }}</span>
-                <span class="block text-xs text-slate-500">{{ $sla[$p->name] ?? '24h' }} target</span>
-              </div>
-            </label>
-          @endforeach
-        </div>
-        <p class="mt-2 text-xs text-slate-500">Use Critical only when work has completely stopped.</p>
-        @error('priority_id')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
-      </div>
-
+            <p class="rounded-xl bg-indigo-50 px-4 py-3 text-sm text-indigo-700">IT Support will review your ticket and set its priority.</p>
       {{-- Attachments --}}
       <div>
         <span class="{{ $lab }}">Attachments <span class="font-normal text-slate-400">(optional)</span></span>
